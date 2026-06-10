@@ -1,233 +1,86 @@
 'use client';
-// app/(admin)/admin/pending/page-client.tsx
-// Server page fetches data; this client component handles approve/reject UI
-
 import { useState } from 'react';
-import type { Paper } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Card, CardContent, CardFooter, CardHeader, CardTitle,
-} from '@/components/ui/card';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import { CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 
-interface PendingPapersClientProps {
-  papers: Paper[];
-}
-
-export function PendingPapersClient({ papers }: PendingPapersClientProps) {
+export function PendingPapersClient({ papers }: { papers: any[] }) {
   const router = useRouter();
-  const [viewPaper, setViewPaper]       = useState<Paper | null>(null);
-  const [rejectPaper, setRejectPaper]   = useState<Paper | null>(null);
-  const [rejectNote, setRejectNote]     = useState('');
-  const [loading, setLoading]           = useState<string | null>(null);
-  const [error, setError]               = useState('');
+  const [loading, setLoading] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+  const [error, setError] = useState('');
 
-  async function getAuthToken() {
-    const supabase = createClient();
+  async function getToken() {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? '';
   }
 
-  async function handleApprove(paper: Paper) {
-    setLoading(paper.id);
-    setError('');
-    try {
-      const token = await getAuthToken();
-      const res = await fetch('/api/admin/approve', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ paper_id: paper.id }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        router.refresh();
-      } else {
-        setError(json.error ?? 'Approval failed.');
-      }
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(null);
-    }
+  async function approve(id: string) {
+    setLoading(id); setError('');
+    const token = await getToken();
+    const res = await fetch('/api/admin/approve', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ paper_id: id }) });
+    const json = await res.json();
+    if (json.success) router.refresh(); else setError(json.error);
+    setLoading(null);
   }
 
-  async function handleReject() {
-    if (!rejectPaper) return;
-    if (!rejectNote.trim()) { setError('Please provide a rejection reason.'); return; }
-
-    setLoading(rejectPaper.id);
-    setError('');
-    try {
-      const token = await getAuthToken();
-      const res = await fetch('/api/admin/approve', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ paper_id: rejectPaper.id, admin_note: rejectNote }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setRejectPaper(null);
-        setRejectNote('');
-        router.refresh();
-      } else {
-        setError(json.error ?? 'Rejection failed.');
-      }
-    } catch {
-      setError('Network error.');
-    } finally {
-      setLoading(null);
-    }
+  async function reject() {
+    if (!rejectId || !rejectNote.trim()) { setError('Please provide a reason.'); return; }
+    setLoading(rejectId); setError('');
+    const token = await getToken();
+    const res = await fetch('/api/admin/approve', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ paper_id: rejectId, admin_note: rejectNote }) });
+    const json = await res.json();
+    if (json.success) { setRejectId(null); setRejectNote(''); router.refresh(); } else setError(json.error);
+    setLoading(null);
   }
 
-  if (papers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
-        <CheckCircle className="h-12 w-12 text-green-400" />
-        <p className="text-lg font-medium">All caught up!</p>
-        <p className="text-sm">No pending papers to review.</p>
-      </div>
-    );
-  }
+  if (papers.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '80px', color: '#64748b' }}>
+      <p style={{ fontSize: '3rem' }}>✅</p>
+      <p style={{ fontSize: '1.2rem', fontWeight: '600' }}>All caught up! No pending papers.</p>
+    </div>
+  );
 
   return (
     <>
-      {error && (
-        <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-          {error}
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {papers.map((paper: any) => (
-          <Card key={paper.id} className="flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base leading-tight">
-                {paper.subject?.name}
-              </CardTitle>
-              <p className="text-xs text-muted-foreground font-mono">
-                {paper.subject?.course_code}
-              </p>
-            </CardHeader>
-
-            <CardContent className="space-y-2 flex-1 text-sm">
-              <Row label="Department" value={paper.department?.name} />
-              <Row label="Teacher"    value={paper.teacher?.name} />
-              <Row label="Exam"       value={paper.exam_type} />
-              <Row label="Term"       value={`${paper.term} ${paper.year}`} />
-              <Row label="Semester"   value={`Semester ${paper.semester}`} />
-              <Row label="Roll No."   value={paper.roll_number} mono />
-              <Row
-                label="Submitted"
-                value={new Date(paper.created_at).toLocaleDateString()}
-              />
-            </CardContent>
-
-            <CardFooter className="border-t pt-3 gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setViewPaper(paper)}
-              >
-                <Eye className="h-3.5 w-3.5 mr-1.5" /> Preview
-              </Button>
-              <Button
-                size="sm"
-                variant="default"
-                className="bg-green-600 hover:bg-green-700"
-                disabled={loading === paper.id}
-                onClick={() => handleApprove(paper)}
-              >
-                {loading === paper.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <><CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Approve</>
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={loading === paper.id}
-                onClick={() => { setRejectPaper(paper); setRejectNote(''); setError(''); }}
-              >
-                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Reject
-              </Button>
-            </CardFooter>
-          </Card>
+      {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '12px', marginBottom: '16px', color: '#dc2626', fontSize: '14px' }}>{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+        {papers.map((p: any) => (
+          <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '16px' }}>
+            <h3 style={{ fontWeight: '600', marginBottom: '4px' }}>{p.subject?.name}</h3>
+            <p style={{ color: '#64748b', fontSize: '12px', fontFamily: 'monospace', marginBottom: '12px' }}>{p.subject?.course_code}</p>
+            <div style={{ fontSize: '13px', color: '#64748b', lineHeight: '2', marginBottom: '12px' }}>
+              <div>🏫 {p.department?.name}</div>
+              <div>👤 {p.teacher?.name}</div>
+              <div>📝 {p.exam_type} · Sem {p.semester} · {p.term} {p.year}</div>
+              <div>🎓 <span style={{ fontFamily: 'monospace' }}>{p.roll_number}</span></div>
+              <div>📅 {new Date(p.created_at).toLocaleDateString()}</div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+              <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/authenticated/papers/${p.file_path}`} target="_blank" style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', textDecoration: 'none', color: '#374151' }}>👁 Preview</a>
+              <button onClick={() => approve(p.id)} disabled={loading === p.id} style={{ padding: '6px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', flex: 1 }}>
+                {loading === p.id ? '...' : '✓ Approve'}
+              </button>
+              <button onClick={() => { setRejectId(p.id); setRejectNote(''); setError(''); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>✕ Reject</button>
+            </div>
+          </div>
         ))}
       </div>
-
-      {/* File Preview Dialog */}
-      <Dialog open={!!viewPaper} onOpenChange={() => setViewPaper(null)}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
-          <DialogHeader className="px-6 py-4 border-b shrink-0">
-            <DialogTitle>{viewPaper?.file_name}</DialogTitle>
-          </DialogHeader>
-          {viewPaper && (
-            <iframe
-              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/authenticated/papers/${viewPaper.file_path}`}
-              className="flex-1 w-full border-0"
-              title="Paper preview"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Dialog */}
-      <Dialog open={!!rejectPaper} onOpenChange={() => setRejectPaper(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Paper</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Provide a reason for rejection. This is stored internally.
-            </p>
-            <Textarea
-              placeholder="Reason for rejection…"
-              value={rejectNote}
-              onChange={(e) => setRejectNote(e.target.value)}
-              rows={4}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
+      {rejectId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '400px' }}>
+            <h3 style={{ fontWeight: '600', marginBottom: '12px' }}>Reject Paper</h3>
+            <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value)} placeholder="Reason for rejection..." rows={4}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }} />
+            {error && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '8px' }}>{error}</p>}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setRejectId(null)} style={{ padding: '8px 16px', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', background: 'white' }}>Cancel</button>
+              <button onClick={reject} disabled={!!loading} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Confirm Rejection</button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectPaper(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={!!loading}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Rejection'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </>
-  );
-}
-
-function Row({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span className="text-muted-foreground shrink-0">{label}</span>
-      <span className={`font-medium text-right truncate ${mono ? 'font-mono text-xs' : ''}`}>
-        {value ?? '—'}
-      </span>
-    </div>
   );
 }
