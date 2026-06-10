@@ -1,39 +1,23 @@
-// app/(public)/leaderboard/page.tsx
-import { Suspense } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import type { LeaderboardEntry } from '@/types';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Trophy, Medal, Award } from 'lucide-react';
-import Link from 'next/link';
+
+interface LeaderboardEntry {
+  id: string;
+  roll_number: string;
+  total_approved: number;
+  department_name?: string;
+  department_code?: string;
+  rank: number;
+}
 
 async function getLeaderboard(search?: string): Promise<LeaderboardEntry[]> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-
-  let query = supabase
-    .from('v_leaderboard')
-    .select('*')
-    .limit(100);
-
-  if (search) {
-    query = query.ilike('roll_number', `%${search}%`);
-  }
-
+  let query = supabase.from('v_leaderboard').select('*').limit(100);
+  if (search) query = query.ilike('roll_number', `%${search}%`);
   const { data } = await query;
   return (data ?? []) as LeaderboardEntry[];
-}
-
-function RankIcon({ rank }: { rank: number }) {
-  if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
-  if (rank === 2) return <Medal className="h-5 w-5 text-slate-400" />;
-  if (rank === 3) return <Award className="h-5 w-5 text-amber-600" />;
-  return <span className="text-muted-foreground font-mono text-sm">#{rank}</span>;
 }
 
 interface PageProps {
@@ -45,80 +29,58 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
   const entries = await getLeaderboard(q);
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-4xl">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Contributors Leaderboard</h1>
-        <p className="text-muted-foreground">
-          Ranked by approved paper contributions. Thank you to everyone who helps build this archive.
-        </p>
-      </div>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>
+      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Contributors Leaderboard</h1>
+      <p style={{ color: '#64748b', marginBottom: '24px' }}>
+        Ranked by approved paper contributions.
+      </p>
 
-      {/* Search */}
-      <form className="mb-6">
-        <Input
+      <form method="GET" style={{ marginBottom: '24px' }}>
+        <input
           name="q"
           defaultValue={q}
-          placeholder="Search by roll number…"
-          className="max-w-sm mx-auto"
+          placeholder="Search by roll number..."
+          style={{
+            padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px',
+            width: '300px', fontSize: '14px'
+          }}
         />
       </form>
 
       {entries.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
+        <p style={{ color: '#64748b', textAlign: 'center', padding: '60px' }}>
           {q ? `No contributors found for "${q}".` : 'No contributors yet. Be the first!'}
-        </div>
+        </p>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Roll Number</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Approved Papers</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry) => (
-                <TableRow
-                  key={entry.id}
-                  className={
-                    entry.rank <= 3
-                      ? 'bg-amber-50/50 dark:bg-amber-950/10'
-                      : ''
-                  }
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center justify-center">
-                      <RankIcon rank={Number(entry.rank)} />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/contributors/${encodeURIComponent(entry.roll_number)}`}
-                      className="font-mono font-medium hover:text-primary hover:underline"
-                    >
-                      {entry.roll_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {entry.department_code ? (
-                      <Badge variant="outline">{entry.department_code}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-bold text-lg">{entry.total_approved}</span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Rank</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Roll Number</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Department</th>
+              <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Approved Papers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry, i) => (
+              <tr key={entry.id} style={{ borderTop: '1px solid #e2e8f0', background: i < 3 ? '#fffbeb' : 'white' }}>
+                <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>
+                  {Number(entry.rank) === 1 ? '🥇' : Number(entry.rank) === 2 ? '🥈' : Number(entry.rank) === 3 ? '🥉' : `#${entry.rank}`}
+                </td>
+                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: '600' }}>
+                  <a href={`/contributors/${encodeURIComponent(entry.roll_number)}`} style={{ color: '#1d4ed8', textDecoration: 'none' }}>
+                    {entry.roll_number}
+                  </a>
+                </td>
+                <td style={{ padding: '12px 16px', color: '#64748b' }}>{entry.department_code ?? '—'}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem' }}>{entry.total_approved}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
 }
 
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 300;
