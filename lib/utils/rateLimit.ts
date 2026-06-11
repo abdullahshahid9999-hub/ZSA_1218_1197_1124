@@ -1,17 +1,15 @@
 // lib/utils/rateLimit.ts
-// In-memory rate limiter for API routes.
-// For production at scale, replace with Upstash Redis.
 
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
 
-const store = new Map<string, RateLimitEntry>();
+const store: Record<string, RateLimitEntry> = {};
 
 interface RateLimitOptions {
-  windowMs: number;   // Time window in milliseconds
-  max: number;        // Max requests per window
+  windowMs: number;
+  max: number;
 }
 
 export interface RateLimitResult {
@@ -20,60 +18,36 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-/**
- * Check and increment rate limit for a given key (usually IP address).
- * Uses sliding window counter per key.
- */
 export function rateLimit(
   key: string,
   options: RateLimitOptions = { windowMs: 60_000, max: 5 }
 ): RateLimitResult {
   const now = Date.now();
-  const entry = store.get(key);
+  const entry = store[key];
 
   if (!entry || entry.resetAt < now) {
-    // New window
-    const newEntry: RateLimitEntry = {
-      count: 1,
-      resetAt: now + options.windowMs,
-    };
-    store.set(key, newEntry);
-    return {
-      allowed: true,
-      remaining: options.max - 1,
-      resetAt: newEntry.resetAt,
-    };
+    store[key] = { count: 1, resetAt: now + options.windowMs };
+    return { allowed: true, remaining: options.max - 1, resetAt: store[key].resetAt };
   }
 
   if (entry.count >= options.max) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: entry.resetAt,
-    };
+    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
   }
 
   entry.count += 1;
-  return {
-    allowed: true,
-    remaining: options.max - entry.count,
-    resetAt: entry.resetAt,
-  };
+  return { allowed: true, remaining: options.max - entry.count, resetAt: entry.resetAt };
 }
 
-// Cleanup old entries every 5 minutes to prevent memory leaks
+// Cleanup old entries every 5 minutes
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of store.entries()) {
-      if (entry.resetAt < now) store.delete(key);
-    }
+    Object.keys(store).forEach(key => {
+      if (store[key].resetAt < now) delete store[key];
+    });
   }, 5 * 60 * 1000);
 }
 
-/**
- * Helper: extract IP from Next.js request headers.
- */
 export function getClientIp(request: Request): string {
   return (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
@@ -82,16 +56,9 @@ export function getClientIp(request: Request): string {
   );
 }
 
-/**
- * Verify reCAPTCHA v3 token server-side.
- */
 export async function verifyRecaptcha(token: string): Promise<boolean> {
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-  if (!secretKey) {
-    console.warn('RECAPTCHA_SECRET_KEY not set — skipping verification');
-    return true;
-  }
-
+  if (!secretKey) return true;
   try {
     const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
