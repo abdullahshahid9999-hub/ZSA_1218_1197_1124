@@ -13,17 +13,18 @@ export default function PapersPage() {
   const [filterExam, setFilterExam] = useState('');
   const [filterTerm, setFilterTerm] = useState('');
   const [filterYear, setFilterYear] = useState('');
+  const [filterSem, setFilterSem] = useState('');
   const [preview, setPreview] = useState<any>(null);
-
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
 
   const load = async () => {
     setLoading(true);
-    let q = sb.from('v_papers_public').select('*').order('year', { ascending: false });
+    let q = sb.from('v_papers_public').select('*').order('year', { ascending: false }).order('created_at', { ascending: false });
     if (filterDept) q = q.eq('department_id', filterDept);
     if (filterExam) q = q.eq('exam_type', filterExam);
     if (filterTerm) q = q.eq('term', filterTerm);
     if (filterYear) q = q.eq('year', parseInt(filterYear));
+    if (filterSem) q = q.eq('semester', filterSem);
     if (search) q = q.or(`subject_name.ilike.%${search}%,teacher_name.ilike.%${search}%,course_code.ilike.%${search}%`);
     const { data } = await q.limit(100);
     setPapers(data ?? []);
@@ -31,76 +32,128 @@ export default function PapersPage() {
   };
 
   useEffect(() => {
-    sb.from('departments').select('id,name,code').eq('is_active',true).order('name').then(({ data }) => setDepts(data ?? []));
+    sb.from('departments').select('id,name,code').eq('is_active', true).order('name').then(({ data }) => setDepts(data ?? []));
   }, []);
+  useEffect(() => { load(); }, [filterDept, filterExam, filterTerm, filterYear, filterSem]);
 
-  useEffect(() => { load(); }, [filterDept, filterExam, filterTerm, filterYear]);
-
-  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); load(); };
-
-  const inp = { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', background: 'white' };
+  const inp: React.CSSProperties = {
+    padding: '9px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px',
+    fontSize: '14px', background: 'white', color: '#111827', fontFamily: 'inherit',
+    outline: 'none', transition: 'border-color 0.15s',
+  };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '4px' }}>Past Papers</h1>
-      <p style={{ color: '#6b7280', marginBottom: '24px' }}>{papers.length} papers available</p>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+      {/* Hero */}
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#111827', marginBottom: '6px' }}>Past Papers</h1>
+        <p style={{ color: '#6b7280', fontSize: '15px' }}>{loading ? 'Loading...' : `${papers.length} papers available for download`}</p>
+      </div>
 
       {/* Filters */}
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '28px', background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search subject, teacher, code..." style={{ ...inp, minWidth: '220px', flex: 1 }} />
-        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={inp}>
-          <option value="">All Departments</option>
-          {depts.map(d => <option key={d.id} value={d.id}>{d.code} - {d.name}</option>)}
-        </select>
-        <select value={filterExam} onChange={e => setFilterExam(e.target.value)} style={inp}>
-          <option value="">All Exam Types</option>
-          <option value="Mid">Mid</option>
-          <option value="Final">Final</option>
-        </select>
-        <select value={filterTerm} onChange={e => setFilterTerm(e.target.value)} style={inp}>
-          <option value="">All Terms</option>
-          <option value="Spring">Spring</option>
-          <option value="Fall">Fall</option>
-        </select>
-        <select value={filterYear} onChange={e => setFilterYear(e.target.value)} style={inp}>
-          <option value="">All Years</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <button type="submit" style={{ padding: '8px 20px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>Search</button>
-        <button type="button" onClick={() => { setSearch(''); setFilterDept(''); setFilterExam(''); setFilterTerm(''); setFilterYear(''); }}
-          style={{ padding: '8px 14px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Clear</button>
-      </form>
+      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px', marginBottom: '28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: '1 1 220px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Search</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '16px' }}>🔍</span>
+              <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()}
+                placeholder="Subject, teacher, code..." style={{ ...inp, paddingLeft: '38px', width: '100%' }} />
+            </div>
+          </div>
+          {[
+            { label: 'Department', val: filterDept, set: setFilterDept, opts: depts.map(d => ({ v: d.id, l: `${d.code} - ${d.name}` })) },
+            { label: 'Exam Type', val: filterExam, set: setFilterExam, opts: [{ v: 'Mid', l: 'Mid Term' }, { v: 'Final', l: 'Final Term' }] },
+            { label: 'Term', val: filterTerm, set: setFilterTerm, opts: [{ v: 'Spring', l: 'Spring' }, { v: 'Fall', l: 'Fall' }] },
+            { label: 'Semester', val: filterSem, set: setFilterSem, opts: ['1','2','3','4','5','6','7','8'].map(s => ({ v: s, l: `Semester ${s}` })) },
+            { label: 'Year', val: filterYear, set: setFilterYear, opts: years.map(y => ({ v: String(y), l: String(y) })) },
+          ].map(({ label, val, set, opts }) => (
+            <div key={label} style={{ flex: '1 1 140px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+              <select value={val} onChange={e => set(e.target.value)} style={{ ...inp, width: '100%' }}>
+                <option value="">All</option>
+                {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingBottom: '1px' }}>
+            <button onClick={load} style={{ padding: '10px 20px', background: '#1a56db', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>Search</button>
+            <button onClick={() => { setSearch(''); setFilterDept(''); setFilterExam(''); setFilterTerm(''); setFilterYear(''); setFilterSem(''); }}
+              style={{ padding: '10px 16px', background: 'white', border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', color: '#6b7280' }}>Clear</button>
+          </div>
+        </div>
+      </div>
 
+      {/* Results */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#6b7280' }}>Loading papers...</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px', height: '200px', animation: 'pulse 2s infinite' }}>
+              <div style={{ height: '16px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '12px', width: '70%' }} />
+              <div style={{ height: '12px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '8px', width: '40%' }} />
+              <div style={{ height: '12px', background: '#f3f4f6', borderRadius: '4px', width: '60%' }} />
+            </div>
+          ))}
+        </div>
       ) : papers.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#6b7280', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-          <p style={{ fontSize: '1.1rem', fontWeight: '500' }}>No papers found</p>
-          <p style={{ fontSize: '14px' }}>Try adjusting your filters.</p>
+        <div style={{ textAlign: 'center', padding: '80px 20px', background: 'white', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '8px' }}>No papers found</h3>
+          <p style={{ color: '#6b7280', fontSize: '14px' }}>Try adjusting your search filters</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
           {papers.map(p => (
-            <div key={p.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                <h3 style={{ fontWeight: '600', fontSize: '14px', margin: 0, flex: 1, lineHeight: '1.4' }}>{p.subject_name}</h3>
-                <span style={{ background: p.exam_type === 'Final' ? '#dbeafe' : '#f3f4f6', color: p.exam_type === 'Final' ? '#1e40af' : '#374151', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', marginLeft: '8px', flexShrink: 0 }}>{p.exam_type}</span>
+            <div key={p.id} style={{
+              background: 'white', border: '1px solid #e5e7eb', borderRadius: '14px',
+              padding: '20px', display: 'flex', flexDirection: 'column',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#111827', marginBottom: '3px', lineHeight: '1.3' }}>{p.subject_name}</h3>
+                  <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#6b7280', background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>{p.course_code}</span>
+                </div>
+                <span style={{
+                  flexShrink: 0, marginLeft: '10px',
+                  padding: '4px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: '700',
+                  background: p.exam_type === 'Final' ? '#dbeafe' : '#fef3c7',
+                  color: p.exam_type === 'Final' ? '#1e40af' : '#92400e',
+                }}>{p.exam_type}</span>
               </div>
-              <p style={{ color: '#6b7280', fontSize: '11px', fontFamily: 'monospace', margin: '0 0 10px' }}>{p.course_code}</p>
-              <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.9', flex: 1 }}>
-                <div>🏫 {p.department_name}</div>
-                <div>👤 {p.teacher_name}</div>
-                <div>📅 Sem {p.semester} · {p.term} {p.year}</div>
+
+              {/* Details */}
+              <div style={{ flex: 1, marginBottom: '16px' }}>
+                {[
+                  { icon: '🏫', text: p.department_name },
+                  { icon: '👤', text: p.teacher_name },
+                  { icon: '📅', text: `Semester ${p.semester} · ${p.term} ${p.year}` },
+                ].map(({ icon, text }) => (
+                  <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '13px', color: '#4b5563' }}>
+                    <span style={{ fontSize: '14px', flexShrink: 0 }}>{icon}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
-                <button onClick={() => setPreview(p)}
-                  style={{ flex: 1, padding: '7px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-                  View
-                </button>
-                <a href={p.file_url} download target="_blank" rel="noopener noreferrer"
-                  style={{ flex: 1, padding: '7px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', textDecoration: 'none', color: '#374151', textAlign: 'center' }}>
-                  Download
-                </a>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '14px', borderTop: '1px solid #f3f4f6' }}>
+                <button onClick={() => setPreview(p)} style={{
+                  flex: 1, padding: '9px', background: '#1a56db', color: 'white',
+                  border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                }}>👁 View</button>
+                <a href={p.file_url} download target="_blank" rel="noopener noreferrer" style={{
+                  flex: 1, padding: '9px', background: 'white', border: '1.5px solid #e5e7eb',
+                  borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                  color: '#374151', textDecoration: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                }}>⬇ Download</a>
               </div>
             </div>
           ))}
@@ -109,22 +162,25 @@ export default function PapersPage() {
 
       {/* PDF Viewer Modal */}
       {preview && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ background: 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', flexDirection: 'column' }} onClick={() => setPreview(null)}>
+          <div style={{ background: 'white', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+            onClick={e => e.stopPropagation()}>
             <div>
-              <span style={{ fontWeight: '600', fontSize: '15px' }}>{preview.subject_name}</span>
-              <span style={{ color: '#6b7280', fontSize: '13px', marginLeft: '12px' }}>{preview.exam_type} · {preview.term} {preview.year}</span>
+              <span style={{ fontWeight: '700', fontSize: '15px', color: '#111827' }}>{preview.subject_name}</span>
+              <span style={{ color: '#6b7280', fontSize: '13px', marginLeft: '10px' }}>{preview.course_code} · {preview.exam_type} · {preview.term} {preview.year}</span>
             </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <a href={preview.file_url} download target="_blank" rel="noopener noreferrer"
-                style={{ padding: '6px 14px', background: '#1d4ed8', color: 'white', borderRadius: '6px', textDecoration: 'none', fontSize: '13px' }}>Download</a>
-              <button onClick={() => setPreview(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#374151' }}>✕</button>
+                style={{ padding: '7px 16px', background: '#1a56db', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '600' }}>
+                ⬇ Download
+              </a>
+              <button onClick={() => setPreview(null)}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
           </div>
-          <div style={{ flex: 1, position: 'relative' }}>
-            {/* Watermark */}
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10, transform: 'rotate(-30deg)' }}>
-              <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'rgba(0,0,0,0.06)', userSelect: 'none', whiteSpace: 'nowrap' }}>NTU Past Papers Archive</span>
+          <div style={{ flex: 1, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 1, transform: 'rotate(-25deg)' }}>
+              <span style={{ fontSize: '28px', fontWeight: '800', color: 'rgba(0,0,0,0.05)', userSelect: 'none', whiteSpace: 'nowrap', letterSpacing: '2px' }}>NTU PAST PAPERS ARCHIVE</span>
             </div>
             <iframe src={preview.file_url + '#toolbar=0'} style={{ width: '100%', height: '100%', border: 'none' }} title="Paper Preview" />
           </div>
