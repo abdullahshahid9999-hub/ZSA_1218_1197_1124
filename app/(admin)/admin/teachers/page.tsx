@@ -11,101 +11,115 @@ export default function TeachersPage() {
   const [deptId, setDeptId] = useState('');
   const [designation, setDesignation] = useState('');
   const [editId, setEditId] = useState<string|null>(null);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState({ text: '', ok: true });
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
 
   const load = async () => {
     const [{ data: t }, { data: d }] = await Promise.all([
       sb.from('teachers').select('*, departments(name,code)').order('name'),
-      sb.from('departments').select('id,name,code').eq('is_active', true).order('name'),
+      sb.from('departments').select('id,name,code').eq('is_active',true).order('name'),
     ]);
     setTeachers(t ?? []); setDepts(d ?? []);
   };
-
   useEffect(() => { load(); }, []);
 
+  const flash = (text: string, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg({ text: '', ok: true }), 2500); };
+
   const save = async () => {
-    if (!name.trim() || !deptId) { setMsg('Name and department required.'); return; }
+    if (!name.trim() || !deptId) { flash('Name and department required.', false); return; }
     setLoading(true);
+    const payload = { name: name.trim(), department_id: deptId, designation: designation.trim() || null };
     if (editId) {
-      await sb.from('teachers').update({ name: name.trim(), department_id: deptId, designation: designation.trim() }).eq('id', editId);
-      setMsg('Updated!');
+      const { error } = await sb.from('teachers').update(payload).eq('id', editId);
+      if (error) flash(error.message, false); else { flash('Updated!'); setName(''); setDeptId(''); setDesignation(''); setEditId(null); await load(); }
     } else {
-      const { error } = await sb.from('teachers').insert({ name: name.trim(), department_id: deptId, designation: designation.trim() });
-      if (error) { setMsg('Error: ' + error.message); setLoading(false); return; }
-      setMsg('Added!');
+      const { error } = await sb.from('teachers').insert(payload);
+      if (error) flash(error.message, false); else { flash('Added!'); setName(''); setDeptId(''); setDesignation(''); await load(); }
     }
-    setName(''); setDeptId(''); setDesignation(''); setEditId(null);
-    await load(); setLoading(false);
-    setTimeout(() => setMsg(''), 2000);
+    setLoading(false);
   };
 
   const del = async (id: string) => {
-    if (!confirm('Delete this teacher?')) return;
-    await sb.from('teachers').delete().eq('id', id);
-    await load();
+    if (!confirm('Delete teacher?')) return;
+    const { error } = await sb.from('teachers').delete().eq('id', id);
+    if (error) flash('Cannot delete — subjects are linked.', false); else { flash('Deleted.'); await load(); }
   };
 
-  const edit = (t: any) => { setEditId(t.id); setName(t.name); setDeptId(t.department_id); setDesignation(t.designation ?? ''); };
-  const inp = { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', width: '100%', boxSizing: 'border-box' as const };
+  const inp: React.CSSProperties = { padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, width: '100%', boxSizing: 'border-box', outline: 'none', color: '#111' };
+  const filtered = teachers.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.departments?.code?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ maxWidth: '900px' }}>
-      <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold', marginBottom: '24px' }}>Teachers</h1>
+    <div style={{ maxWidth: 900 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 24 }}>Teachers</h1>
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>{editId ? 'Edit Teacher' : 'Add Teacher'}</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+      <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 14 }}>{editId ? 'Edit Teacher' : 'Add Teacher'}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: '500', display: 'block', marginBottom: '4px' }}>Full Name *</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Ahmed Ali" style={inp} />
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 5 }}>Full Name *</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Ahmed Ali" style={inp}
+              onFocus={e => (e.target.style.borderColor = '#111')} onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
           </div>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: '500', display: 'block', marginBottom: '4px' }}>Department *</label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 5 }}>Department *</label>
             <select value={deptId} onChange={e => setDeptId(e.target.value)} style={inp}>
-              <option value="">Select Department</option>
-              {depts.map(d => <option key={d.id} value={d.id}>{d.code} - {d.name}</option>)}
+              <option value="">Select</option>
+              {depts.map(d => <option key={d.id} value={d.id}>{d.code}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: '500', display: 'block', marginBottom: '4px' }}>Designation</label>
-            <input value={designation} onChange={e => setDesignation(e.target.value)} placeholder="Lecturer / Asst. Prof" style={inp} />
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 5 }}>Designation</label>
+            <input value={designation} onChange={e => setDesignation(e.target.value)} placeholder="Lecturer" style={inp}
+              onFocus={e => (e.target.style.borderColor = '#111')} onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
           </div>
         </div>
-        {msg && <p style={{ color: msg.startsWith('Error') ? '#dc2626' : '#16a34a', fontSize: '13px', marginBottom: '8px' }}>{msg}</p>}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={save} disabled={loading}
-            style={{ padding: '8px 20px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>
-            {loading ? 'Saving...' : editId ? 'Update' : 'Add Teacher'}
+        {msg.text && <p style={{ fontSize: 13, color: msg.ok ? '#059669' : '#dc2626', marginBottom: 10 }}>{msg.text}</p>}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={save} disabled={loading} style={{ padding: '8px 20px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            {loading ? 'Saving…' : editId ? 'Update' : 'Add'}
           </button>
           {editId && <button onClick={() => { setEditId(null); setName(''); setDeptId(''); setDesignation(''); }}
-            style={{ padding: '8px 16px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Cancel</button>}
+            style={{ padding: '8px 14px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Cancel</button>}
         </div>
       </div>
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{filtered.length} teachers</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or dept…"
+            style={{ padding: '6px 12px', border: '1px solid #e0e0e0', borderRadius: 7, fontSize: 13, outline: 'none', width: 200 }} />
+        </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Name</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Department</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Designation</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Actions</th>
+            <tr style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+              {['Name','Department','Designation','Actions'].map(h => (
+                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {teachers.map((t, i) => (
-              <tr key={t.id} style={{ borderBottom: i < teachers.length-1 ? '1px solid #f3f4f6' : 'none' }}>
-                <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500' }}>{t.name}</td>
-                <td style={{ padding: '12px 16px' }}><span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>{t.departments?.code}</span><span style={{ marginLeft: '6px', fontSize: '13px', color: '#6b7280' }}>{t.departments?.name}</span></td>
-                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{t.designation || '—'}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                  <button onClick={() => edit(t)} style={{ marginRight: '8px', padding: '5px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '5px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
-                  <button onClick={() => del(t.id)} style={{ padding: '5px 12px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '5px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
+            {filtered.map((t, i) => (
+              <tr key={t.id} style={{ borderBottom: i < filtered.length-1 ? '1px solid #f5f5f5' : 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <td style={{ padding: '12px 16px', fontWeight: 500, fontSize: 14 }}>{t.name}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  <span style={{ background: '#f0f4ff', color: '#3b5bdb', padding: '2px 9px', borderRadius: 5, fontSize: 12, fontWeight: 700 }}>{t.departments?.code}</span>
+                  <span style={{ marginLeft: 8, fontSize: 13, color: '#777' }}>{t.departments?.name}</span>
+                </td>
+                <td style={{ padding: '12px 16px', fontSize: 13, color: '#777' }}>{t.designation || '—'}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => { setEditId(t.id); setName(t.name); setDeptId(t.department_id); setDesignation(t.designation ?? ''); }}
+                      style={{ padding: '5px 12px', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Edit</button>
+                    <button onClick={() => del(t.id)}
+                      style={{ padding: '5px 12px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {teachers.length === 0 && <tr><td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No teachers yet. Add departments first.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: '#aaa', fontSize: 14 }}>No teachers yet.</td></tr>}
           </tbody>
         </table>
       </div>
