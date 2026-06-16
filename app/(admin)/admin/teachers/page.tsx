@@ -14,6 +14,7 @@ export default function TeachersPage() {
   const [msg, setMsg] = useState({ text: '', ok: true });
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [desigFilter, setDesigFilter] = useState('All');
 
   const load = async () => {
     const [{ data: t }, { data: d }] = await Promise.all([
@@ -47,7 +48,13 @@ export default function TeachersPage() {
   };
 
   const inp: React.CSSProperties = { padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, width: '100%', boxSizing: 'border-box', outline: 'none', color: '#111' };
-  const filtered = teachers.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.departments?.code?.toLowerCase().includes(search.toLowerCase()));
+  
+  const designations = ['All', ...Array.from(new Set(teachers.map(t => t.designation).filter(Boolean)))];
+  const filtered = teachers.filter(t => {
+    const mS = t.name.toLowerCase().includes(search.toLowerCase()) || t.departments?.code?.toLowerCase().includes(search.toLowerCase());
+    const mD = desigFilter === 'All' || t.designation === desigFilter;
+    return mS && mD;
+  });
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -82,6 +89,19 @@ export default function TeachersPage() {
           {editId && <button onClick={() => { setEditId(null); setName(''); setDeptId(''); setDesignation(''); }}
             style={{ padding: '8px 14px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Cancel</button>}
         </div>
+      </div>
+
+      {/* Designation Filters */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {designations.map(d => (
+          <button key={d as string} onClick={() => setDesigFilter(d as string)} style={{
+            padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+            background: desigFilter === d ? '#111' : '#f5f5f5', color: desigFilter === d ? '#fff' : '#555',
+            boxShadow: desigFilter === d ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+          }}>
+            {d as string}
+          </button>
+        ))}
       </div>
 
       <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, overflow: 'hidden' }}>

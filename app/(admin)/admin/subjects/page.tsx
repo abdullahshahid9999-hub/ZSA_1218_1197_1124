@@ -15,6 +15,7 @@ export default function SubjectsPage() {
   const [msg, setMsg] = useState({ text: '', ok: true });
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [teacherFilter, setTeacherFilter] = useState('All');
 
   const load = async () => {
     const [{ data: s }, { data: t }] = await Promise.all([
@@ -37,10 +38,17 @@ export default function SubjectsPage() {
       .select('id')
       .eq('course_code', payload.course_code)
       .eq('teacher_id', payload.teacher_id);
+      
+    if (payload.credits !== null) {
+      dupQuery = dupQuery.eq('credits', payload.credits);
+    } else {
+      dupQuery = dupQuery.is('credits', null);
+    }
+
     if (editId) dupQuery = dupQuery.neq('id', editId);
     const { data: existing } = await dupQuery.maybeSingle();
     if (existing) {
-      flash('This teacher already has this course assigned', false);
+      flash('This teacher already has this course assigned with the same credits.', false);
       setLoading(false);
       return;
     }
@@ -62,11 +70,15 @@ export default function SubjectsPage() {
   };
 
   const inp: React.CSSProperties = { padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, width: '100%', boxSizing: 'border-box', outline: 'none', color: '#111' };
-  const filtered = subjects.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.course_code.toLowerCase().includes(search.toLowerCase()) ||
-    s.teachers?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  
+  const uniqueTeachers = ['All', ...Array.from(new Set(subjects.map(s => s.teachers?.name).filter(Boolean)))];
+  const filtered = subjects.filter(s => {
+    const mS = s.name.toLowerCase().includes(search.toLowerCase()) ||
+               s.course_code.toLowerCase().includes(search.toLowerCase()) ||
+               s.teachers?.name?.toLowerCase().includes(search.toLowerCase());
+    const mT = teacherFilter === 'All' || s.teachers?.name === teacherFilter;
+    return mS && mT;
+  });
 
   return (
     <div style={{ maxWidth: 1000 }}>
@@ -106,6 +118,19 @@ export default function SubjectsPage() {
           {editId && <button onClick={() => { setEditId(null); setName(''); setCode(''); setTeacherId(''); setCredits(''); }}
             style={{ padding: '8px 14px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Cancel</button>}
         </div>
+      </div>
+
+      {/* Teacher Filters */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {uniqueTeachers.map(t => (
+          <button key={t as string} onClick={() => setTeacherFilter(t as string)} style={{
+            padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+            background: teacherFilter === t ? '#111' : '#f5f5f5', color: teacherFilter === t ? '#fff' : '#555',
+            boxShadow: teacherFilter === t ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+          }}>
+            {t as string}
+          </button>
+        ))}
       </div>
 
       <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, overflow: 'hidden' }}>

@@ -9,17 +9,66 @@ export default function ApprovedPage() {
   const [papers, setPapers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [preview, setPreview] = useState<string|null>(null);
+  const [rejectId, setRejectId] = useState<string|null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+  const [loadingAction, setLoadingAction] = useState<string|null>(null);
+  const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    sb.from('papers')
+  const load = async () => {
+    const { data } = await sb.from('papers')
       .select('*, departments(name,code), teachers(name), subjects(name,course_code)')
-      .eq('status','Approved').order('created_at',{ ascending: false })
-      .then(({ data }) => setPapers(data ?? []));
-  }, []);
+      .eq('status','Approved').order('created_at',{ ascending: false });
+    setPapers(data ?? []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const getSignedUrl = async (filePath: string) => {
     const { data } = await sb.storage.from('papers').createSignedUrl(filePath, 3600);
     return data?.signedUrl ?? null;
+  };
+
+  const rejectPaper = async () => {
+    if (!rejectId || !rejectNote.trim()) return;
+    setLoadingAction(rejectId); setMsg('');
+    const p = papers.find(x => x.id === rejectId);
+    
+    // Move file back to pending folder
+    let newPath = p.file_path;
+    if (p.file_path.startsWith('approved/')) {
+      newPath = p.file_path.replace('approved/', 'pending/');
+      await sb.storage.from('papers').move(p.file_path, newPath);
+    }
+    
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/papers/${newPath}`;
+
+    await sb.from('papers').update({
+      status: 'Rejected',
+      admin_note: rejectNote,
+      file_path: newPath,
+      file_url: publicUrl,
+      reviewed_at: new Date().toISOString(),
+    }).eq('id', rejectId);
+
+    setRejectId(null); setRejectNote(''); setLoadingAction(null);
+    setMsg('Paper successfully moved to Rejected.');
+    await load();
+    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const deletePaper = async (p: any) => {
+    if (!confirm('Are you sure you want to permanently delete this paper? This cannot be undone.')) return;
+    setLoadingAction(p.id); setMsg('');
+    
+    if (p.file_path) {
+      await sb.storage.from('papers').remove([p.file_path]);
+    }
+    await sb.from('papers').delete().eq('id', p.id);
+
+    setLoadingAction(null);
+    setMsg('Paper deleted permanently.');
+    await load();
+    setTimeout(() => setMsg(''), 3000);
   };
 
   const filtered = papers.filter(p =>
@@ -33,6 +82,12 @@ export default function ApprovedPage() {
     <div>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 6 }}>Approved Papers</h1>
       <p style={{ fontSize: 14, color: '#888', marginBottom: 20 }}>{papers.length} approved papers</p>
+
+      {msg && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#166534', fontSize: 13 }}>
+          {msg}
+        </div>
+      )}
 
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search subject, teacher, roll number…"
         style={{ padding: '9px 14px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, outline: 'none', width: 300, marginBottom: 20, display: 'block' }} />
@@ -64,10 +119,20 @@ export default function ApprovedPage() {
                 <td style={{ padding: '11px 14px', fontSize: 12, fontFamily: 'monospace', color: '#777' }}>{p.roll_number}</td>
                 <td style={{ padding: '11px 14px', fontSize: 12, color: '#aaa' }}>{new Date(p.reviewed_at ?? p.created_at).toLocaleDateString()}</td>
                 <td style={{ padding: '11px 14px' }}>
-                  <button onClick={async () => { const url = await getSignedUrl(p.file_path); if(url) setPreview(url); }}
-                    style={{ padding: '4px 10px', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 5, cursor: 'pointer', fontSize: 12 }}>
-                    View
-                  </button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={async () => { const url = await getSignedUrl(p.file_path); if(url) setPreview(url); }} disabled={loadingAction === p.id}
+                      style={{ padding: '4px 10px', background: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: 5, cursor: 'pointer', fontSize: 12 }}>
+                      View
+                    </button>
+                    <button onClick={() => { setRejectId(p.id); setRejectNote(''); }} disabled={loadingAction === p.id}
+                      style={{ padding: '4px 10px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      Reject
+                    </button>
+                    <button onClick={() => deletePaper(p)} disabled={loadingAction === p.id}
+                      style={{ padding: '4px 10px', background: '#111', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12 }}>
+                      {loadingAction === p.id ? '…' : 'Delete'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -83,6 +148,29 @@ export default function ApprovedPage() {
             <button onClick={() => setPreview(null)} style={{ background: '#f5f5f5', border: 'none', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
           </div>
           <iframe src={preview} style={{ flex: 1, border: 'none' }} title="Preview" />
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, boxShadow: '0 16px 48px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Reject Paper</h3>
+            <p style={{ fontSize: 13, color: '#777', marginBottom: 12 }}>Provide a reason for rejection:</p>
+            <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value)} rows={4}
+              placeholder="e.g. Invalid paper, wrong subject..."
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button onClick={() => setRejectId(null)}
+                style={{ padding: '8px 16px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 7, cursor: 'pointer', fontSize: 13 }}>
+                Cancel
+              </button>
+              <button onClick={rejectPaper} disabled={!rejectNote.trim() || loadingAction === rejectId}
+                style={{ padding: '8px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: (!rejectNote.trim() || loadingAction === rejectId) ? 0.5 : 1 }}>
+                {loadingAction === rejectId ? 'Wait...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
