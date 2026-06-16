@@ -31,6 +31,20 @@ export default function SubjectsPage() {
     if (!name.trim() || !code.trim() || !teacherId) { flash('All required fields needed.', false); return; }
     setLoading(true);
     const payload = { name: name.trim(), course_code: code.trim().toUpperCase(), teacher_id: teacherId, credits: credits ? parseInt(credits) : null };
+
+    let dupQuery = sb
+      .from('subjects')
+      .select('id')
+      .eq('course_code', payload.course_code)
+      .eq('teacher_id', payload.teacher_id);
+    if (editId) dupQuery = dupQuery.neq('id', editId);
+    const { data: existing } = await dupQuery.maybeSingle();
+    if (existing) {
+      flash('This teacher already has this course assigned', false);
+      setLoading(false);
+      return;
+    }
+
     if (editId) {
       const { error } = await sb.from('subjects').update(payload).eq('id', editId);
       if (error) flash(error.message, false); else { flash('Updated!'); setName(''); setCode(''); setTeacherId(''); setCredits(''); setEditId(null); await load(); }
