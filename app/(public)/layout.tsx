@@ -80,6 +80,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               ["/papers","Papers"],
               ["/contribute","Contribute"],
               ["/leaderboard","Leaderboard"],
+              ["/notices","Notices"],
               ["/about","About Us"],
             ] as [string,string][]).map(([href, label]) => {
               const active = pathname === href || (href !== "/" && pathname.startsWith(href));

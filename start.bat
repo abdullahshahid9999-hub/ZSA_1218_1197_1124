@@ -1,16 +1,21 @@
 @echo off
 title StudyNest Local Server
-echo Starting StudyNest Local Server...
-echo The admin portal will be available at http://localhost:3000/login
-echo The public portal will be available at http://localhost:3000/papers
-
+echo ============================================
+echo    StudyNest - Local Server
+echo ============================================
 echo.
-echo Please wait while the server starts. Next.js takes a few seconds to compile initially...
-echo (If the terminal seems stuck, press "Enter" to make sure it's not paused)
+echo   Public portal : http://localhost:3000/papers
+echo   Admin  portal : http://localhost:3000/login
+echo.
+echo Both portals will open in your browser automatically
+echo once the server is ready. Next.js takes a few seconds
+echo to compile the first time, so please wait...
 echo.
 
-:: Automatically open the default browser after a short delay (gives Next.js time to boot)
-start http://localhost:3000/papers
+:: Open BOTH the public and admin portals after the server has had time
+:: to boot. This runs in a separate window so it does not block the dev
+:: server started below.
+start "" cmd /c "timeout /t 8 /nobreak >nul & start http://localhost:3000/papers & start http://localhost:3000/login"
 
 npm run dev
 pause

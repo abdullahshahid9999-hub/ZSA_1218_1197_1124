@@ -121,6 +121,21 @@ export interface TeamMember {
   updated_at: string;
 }
 
+export interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  is_pinned: boolean;
+  link_url?: string;
+  link_label?: string;
+  published_at: string;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LeaderboardEntry {
   id: string;
   roll_number: string;

@@ -15,6 +15,7 @@ const nav = [
   { label: 'Rejected',     href: '/admin/rejected' },
   { label: 'Contributors', href: '/admin/contributors' },
   { label: 'Leaderboard',  href: '/admin/leaderboard' },
+  { label: 'Notices',      href: '/admin/notices' },
   { label: 'Admin Management', href: '/admin/team' },
 ];
 
