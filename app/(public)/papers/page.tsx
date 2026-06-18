@@ -31,6 +31,7 @@ export default function PapersPage() {
   const [step, setStep] = useState<1|2|3|4>(1);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [subjectsByTeacher, setSubjectsByTeacher] = useState<Record<string, any[]>>({});
+  const [subjectsFiltered, setSubjectsFiltered] = useState(false);
 
   const handleRoll = async () => {
     const parsed = parseRoll(roll);
@@ -58,10 +59,20 @@ export default function PapersPage() {
     setStep(2);
   };
 
-  // Select a teacher -> show ONLY this teacher's subjects (preloaded; no papers yet)
+  // Select a teacher -> show that teacher's subjects. If the student searched a
+  // course (code/title), show ONLY the matching course(s); otherwise show all.
   const handleTeacher = (tid: string) => {
     setTeacherId(tid); setSubjectId(""); setPapers([]); setStep(3);
-    setSubjects(subjectsByTeacher[tid] ?? []);
+    const all = subjectsByTeacher[tid] ?? [];
+    const q = teacherSearch.trim().toLowerCase();
+    const matched = q ? all.filter(s =>
+      s.course_code?.toLowerCase().includes(q) || s.name?.toLowerCase().includes(q)) : [];
+    if (matched.length > 0) { setSubjects(matched); setSubjectsFiltered(true); }
+    else { setSubjects(all); setSubjectsFiltered(false); }
+  };
+
+  const showAllSubjects = () => {
+    setSubjects(subjectsByTeacher[teacherId] ?? []); setSubjectsFiltered(false);
   };
 
   // Select a subject -> show ONLY this subject's papers
@@ -79,7 +90,7 @@ export default function PapersPage() {
   const reset = () => {
     setRoll(""); setDept(null); setTeachers([]); setTeacherId("");
     setSubjects([]); setSubjectId(""); setPapers([]); setStep(1);
-    setTeacherSearch(""); setSubjectsByTeacher({});
+    setTeacherSearch(""); setSubjectsByTeacher({}); setSubjectsFiltered(false);
   };
 
   const handleView = async (paper: any) => {
@@ -269,7 +280,15 @@ export default function PapersPage() {
       {/* Step 3 — Select Subject */}
       {step >= 3 && (
         <div className="section-card fade-up-2">
-          <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", marginBottom:14, textTransform:"uppercase" }}>Select Subject</label>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", marginBottom:12, textTransform:"uppercase" }}>Select Subject</label>
+          {subjectsFiltered && (
+            <p style={{ fontSize:12, color:"#7c4a03", background:"#fff9f0", border:"1px solid #ffe8cc", borderRadius:8, padding:"7px 11px", marginBottom:12 }}>
+              Showing only courses matching “{teacherSearch}”.{" "}
+              <button onClick={showAllSubjects} style={{ background:"none", border:"none", padding:0, color:"#3b5bdb", fontWeight:700, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>
+                Show all courses
+              </button>
+            </p>
+          )}
           {subjects.length === 0 ? (
             <p style={{ fontSize:13, color:"#bbb" }}>No subjects found for this teacher.</p>
           ) : (
