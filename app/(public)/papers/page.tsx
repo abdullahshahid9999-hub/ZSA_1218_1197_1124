@@ -36,7 +36,7 @@ export default function PapersPage() {
     setDept(parsed); setTeacherId(""); setSubjects([]); setSubjectId(""); setPapers([]);
     const { data: dRow } = await sb.from("departments").select("id").eq("code", parsed.code).eq("is_active", true).single();
     if (!dRow) return;
-    const { data: t } = await sb.from("teachers").select("id,name").eq("department_id", dRow.id).eq("is_active", true).order("name");
+    const { data: t } = await sb.from("teachers").select("id,name,teacher_type").eq("department_id", dRow.id).eq("is_active", true).order("name");
     setTeachers(t ?? []); setStep(2);
   };
 
@@ -86,6 +86,7 @@ export default function PapersPage() {
   };
 
   const selectedSubject = subjects.find(s => s.id === subjectId);
+  const selectedTeacher = teachers.find(t => t.id === teacherId);
   const steps = [["1","Roll No."],["2","Teacher"],["3","Subject"],["4","Papers"]];
 
   return (
@@ -157,12 +158,43 @@ export default function PapersPage() {
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {teachers.map(t => (
                 <button key={t.id} onClick={() => handleTeacher(t.id)}
-                  className={`chip ${teacherId === t.id ? "active" : ""}`}>
+                  className={`chip ${teacherId === t.id ? "active" : ""}`}
+                  style={{ display:"inline-flex", alignItems:"center", gap:7 }}>
                   {t.name}
+                  {t.teacher_type === "Visiting" && (
+                    <span style={{
+                      fontSize:10, fontWeight:800, padding:"1px 7px", borderRadius:999,
+                      background: teacherId === t.id ? "rgba(255,255,255,0.25)" : "#fff4e6",
+                      color: teacherId === t.id ? "#fff" : "#e8590c",
+                    }}>
+                      Visiting
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Visiting-teacher warning */}
+      {step >= 3 && selectedTeacher?.teacher_type === "Visiting" && (
+        <div className="fade-up-2" style={{
+          background:"#fff9f0", border:"1px solid #ffd8a8", borderRadius:16,
+          padding:"18px 20px", marginBottom:14,
+          display:"flex", gap:14, alignItems:"flex-start",
+        }}>
+          <div style={{ fontSize:22, lineHeight:1, flexShrink:0 }}>⚠️</div>
+          <div>
+            <div style={{ fontWeight:800, fontSize:14.5, color:"#b35309", marginBottom:5 }}>
+              Heads up — {selectedTeacher.name} is a Visiting teacher
+            </div>
+            <div style={{ fontSize:13, color:"#7c4a03", lineHeight:1.6 }}>
+              Visiting teachers usually teach for a limited time (often a single semester), so their
+              exam/paper pattern may not match the permanent faculty. Please use these past papers
+              as <b>reference only</b> — don&apos;t assume they reflect your current course instructor&apos;s style.
+            </div>
+          </div>
         </div>
       )}
 

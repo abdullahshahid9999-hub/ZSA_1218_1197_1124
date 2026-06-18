@@ -20,6 +20,7 @@ export interface Teacher {
   department_id: string;
   name: string;
   designation?: string;
+  teacher_type?: 'Permanent' | 'Visiting';
   is_active: boolean;
   created_at: string;
   updated_at: string;
