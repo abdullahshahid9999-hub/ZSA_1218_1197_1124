@@ -4,16 +4,20 @@ import { createClient } from "@supabase/supabase-js";
 
 const sb = createClient(
   "https://dvtkcuqwvkakycsseydh.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dGtjdXF3dmtha3ljc3NleWRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3NzA4NywiZXhwIjoyMDk2NjUzMDg3fQ.PQjFQe3RfawULpWVa9jBPAKi4ND2AiRb1ChWgIO6O3Q"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dGtjdXF3dmtha3ljc3NleWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzcwODcsImV4cCI6MjA5NjY1MzA4N30.pLMH2yo3TVlBteHo-ec_T_ENH0WktwXCDmPirGRAf70"
 );
 
 const DEPT_MAP: Record<string,string> = {
-  CS:"Computer Science", TE:"Textile Engineering", ME:"Mechanical Engineering",
+  CS:"Computer Science", SE:"Software Engineering", AI:"Artificial Intelligence",
+  CT:"Communication Technology", TE:"Textile Engineering", ME:"Mechanical Engineering",
   MS:"Management Sciences", EE:"Electrical Engineering", CHE:"Chemical Engineering", ENV:"Environmental Sciences",
 };
 
+// Lenient: a department is recognised as long as the roll contains "NTU-<CODE>".
+// So "NTU-CS", "25-NTU-CS" and "25-NTU-CS-FL-1124" all resolve to CS. The actual
+// department (and its display name) is then confirmed against the database.
 function parseRoll(roll: string) {
-  const m = roll.trim().toUpperCase().match(/^\d{2}-NTU-([A-Z]+)-[A-Z]+-\d{4,6}$/);
+  const m = roll.trim().toUpperCase().match(/NTU-([A-Z]+)/);
   return m ? { code: m[1], name: DEPT_MAP[m[1]] ?? m[1] } : null;
 }
 
@@ -31,14 +35,21 @@ export default function PapersPage() {
   const [step, setStep] = useState<1|2|3|4>(1);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [subjectsByTeacher, setSubjectsByTeacher] = useState<Record<string, any[]>>({});
+  const [rollError, setRollError] = useState("");
   const [subjectsFiltered, setSubjectsFiltered] = useState(false);
 
   const handleRoll = async () => {
     const parsed = parseRoll(roll);
-    if (!parsed) return;
-    setDept(parsed); setTeacherId(""); setSubjects([]); setSubjectId(""); setPapers([]);
-    const { data: dRow } = await sb.from("departments").select("id").eq("code", parsed.code).eq("is_active", true).single();
-    if (!dRow) return;
+    if (!parsed) { setRollError("Include your department code after NTU — e.g. NTU-CS."); setDept(null); return; }
+    setRollError(""); setDept(null); setTeacherId(""); setSubjects([]); setSubjectId(""); setPapers([]); setStep(1);
+
+    const { data: dRow } = await sb.from("departments").select("id,name,code").eq("code", parsed.code).eq("is_active", true).maybeSingle();
+    if (!dRow) {
+      setRollError(`"${parsed.code}" isn't available yet. Currently available: Computer Science (CS), Software Engineering (SE) and Artificial Intelligence (AI).`);
+      return;
+    }
+    setDept({ code: dRow.code, name: dRow.name });
+
     const { data: t } = await sb.from("teachers").select("id,name,teacher_type").eq("department_id", dRow.id).eq("is_active", true).order("name");
     const teacherList = t ?? [];
     setTeachers(teacherList); setTeacherSearch("");
@@ -90,7 +101,7 @@ export default function PapersPage() {
   const reset = () => {
     setRoll(""); setDept(null); setTeachers([]); setTeacherId("");
     setSubjects([]); setSubjectId(""); setPapers([]); setStep(1);
-    setTeacherSearch(""); setSubjectsByTeacher({}); setSubjectsFiltered(false);
+    setTeacherSearch(""); setSubjectsByTeacher({}); setSubjectsFiltered(false); setRollError("");
   };
 
   const handleView = async (paper: any) => {
@@ -138,6 +149,19 @@ export default function PapersPage() {
         <p style={{ fontSize:15, opacity:0.85, maxWidth:480 }}>Enter your roll number, pick a teacher, then a subject to see its past papers.</p>
       </div>
 
+      {/* Coverage / expansion notice */}
+      <div className="fade-up-1" style={{
+        display:"flex", gap:10, alignItems:"flex-start",
+        background:"#eef4ff", border:"1px solid #d6e4ff", borderRadius:12,
+        padding:"12px 16px", marginBottom:18,
+      }}>
+        <span style={{ fontSize:16, lineHeight:1.4, flexShrink:0 }}>🚀</span>
+        <p style={{ fontSize:12.5, color:"#3b5bdb", lineHeight:1.55, margin:0 }}>
+          <b>Now available:</b> Computer Science, Software Engineering and Artificial Intelligence.
+          Communication Technology is being added next — and Textile is on the roadmap, Inshallah.
+        </p>
+      </div>
+
       {/* Step Indicator */}
       <div className="fade-up-1" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
         {steps.map(([num, label], i) => {
@@ -163,22 +187,28 @@ export default function PapersPage() {
       <div className="section-card fade-up-1">
         <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", marginBottom:10, textTransform:"uppercase" }}>Roll Number</label>
         <div style={{ display:"flex", gap:10 }}>
-          <input value={roll} onChange={e => setRoll(e.target.value)}
+          <input value={roll} onChange={e => { setRoll(e.target.value); if (rollError) setRollError(""); }}
             onKeyDown={e => e.key === "Enter" && parseRoll(roll) && handleRoll()}
-            placeholder="e.g. 25-NTU-CS-FL-1124" className="input-field" />
+            placeholder="e.g. NTU-CS  (or 25-NTU-CS-FL-1124)" className="input-field" />
           <button onClick={handleRoll} disabled={!parseRoll(roll)} className="btn-primary"
             style={{ padding:"11px 22px", flexShrink:0, opacity: parseRoll(roll) ? 1 : 0.45 }}>
             Search
           </button>
         </div>
+        {/* Format hint — department code is compulsory */}
+        <p style={{ fontSize:12, color:"#888", marginTop:9, lineHeight:1.5 }}>
+          📌 Your department code after <b>NTU</b> is required — Computer Science students must include <b>NTU-CS</b>.
+          You can type just <b>NTU-CS</b>, or your full roll number.
+        </p>
+
         {dept && (
           <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ background:"#d1fae5", color:"#065f46", padding:"3px 10px", borderRadius:999, fontSize:12, fontWeight:700 }}>✓ {dept.code}</span>
             <span style={{ fontSize:13, color:"#059669", fontWeight:500 }}>{dept.name}</span>
           </div>
         )}
-        {roll.length > 8 && !parseRoll(roll) && (
-          <p style={{ fontSize:12, color:"#dc2626", marginTop:8 }}>Invalid format. Example: 25-NTU-CS-FL-1124</p>
+        {rollError && (
+          <p style={{ fontSize:12.5, color:"#dc2626", marginTop:9, lineHeight:1.5 }}>{rollError}</p>
         )}
       </div>
 
