@@ -14,10 +14,22 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f7f8fc", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="pub-shell" style={{ minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        .pub-shell {
+          background:
+            radial-gradient(820px 460px at 6% -10%, rgba(124,92,250,0.18), transparent 60%),
+            radial-gradient(760px 460px at 100% 2%, rgba(56,189,248,0.14), transparent 55%),
+            radial-gradient(720px 480px at 50% 118%, rgba(236,72,153,0.09), transparent 60%),
+            linear-gradient(180deg, #f7f5ff 0%, #eef3ff 45%, #f6f8fd 100%);
+          background-attachment: fixed;
+        }
+        .pub-shell h1, .pub-shell h2, .pub-shell h3, .pub-shell .paper-year {
+          font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+        }
         @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
         @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
@@ -39,7 +51,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         .input-field { width:100%; padding:11px 14px; border:1.5px solid #e0e0e0; border-radius:9px; font-size:14px; color:#111; background:#fff; outline:none; transition:border-color 0.17s, box-shadow 0.17s; font-family:inherit; }
         .input-field:focus { border-color:#111; box-shadow:0 0 0 3px rgba(17,17,17,0.07); }
         .tag { display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
-        .section-card { background:#fff; border:1px solid #e8e8e8; border-radius:16px; padding:24px; margin-bottom:14px; animation:fadeUp 0.4s ease both; }
+        .section-card { background:rgba(255,255,255,0.72); -webkit-backdrop-filter:blur(16px) saturate(150%); backdrop-filter:blur(16px) saturate(150%); border:1px solid rgba(255,255,255,0.75); border-radius:18px; padding:24px; margin-bottom:14px; box-shadow:0 12px 34px rgba(86,72,160,0.10); animation:fadeUp 0.4s ease both; }
         .step-dot { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; transition:background 0.2s; }
         .step-dot.done   { background:#059669; color:#fff; }
         .step-dot.active { background:#111; color:#fff; }
