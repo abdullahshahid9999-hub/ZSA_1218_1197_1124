@@ -18,6 +18,7 @@ const nav = [
   { label: 'Notices',      href: '/admin/notices' },
   { label: 'Admin Management', href: '/admin/team' },
   { label: 'Contact Us',   href: '/admin/contact' },
+  { label: 'Charity Management', href: '/admin/charity' },
 ];
 
 function useIsMobile() {

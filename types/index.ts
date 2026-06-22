@@ -122,6 +122,26 @@ export interface TeamMember {
   updated_at: string;
 }
 
+export interface PaymentMethod {
+  method: string;
+  number: string;
+  account_name: string;
+}
+
+export interface CharityMember {
+  id: string;
+  name: string;
+  department?: string;
+  is_passout: boolean;
+  info?: string;
+  avatar_url?: string;
+  payments: PaymentMethod[];
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ContactSettings {
   id: number;
   contact_email?: string;
