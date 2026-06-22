@@ -163,53 +163,92 @@ export default function AboutPage() {
           {contact?.intro || "Want to collaborate, contribute, or just share an idea? We'd love to hear from you."}
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: meet.length > 0 ? "repeat(auto-fit,minmax(280px,1fr))" : "1fr", gap: 18, marginBottom: 20 }}>
-          {/* Email */}
-          <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 16, padding: 24 }}>
-            <div style={{ fontSize: 22, marginBottom: 10 }}>✉️</div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 6 }}>Reach out by email</h3>
-            <p style={{ fontSize: 13.5, color: "#666", lineHeight: 1.6, marginBottom: 16 }}>
-              For collaborations, ideas, corrections, or anything StudyNest — drop us a line.
-            </p>
-            {contact?.contact_email ? (
-              <>
-                <a href={`mailto:${contact.contact_email}`} style={{
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "10px 18px", borderRadius: 10, fontSize: 14, fontWeight: 700,
-                  textDecoration: "none", color: "#fff",
-                  background: "linear-gradient(135deg,#667eea,#764ba2)",
-                }}>
-                  Email us →
-                </a>
-                <div style={{ fontSize: 12, color: "#999", marginTop: 10, fontFamily: "monospace" }}>{contact.contact_email}</div>
-              </>
-            ) : (
-              <span style={{ fontSize: 13, color: "#aaa" }}>Email coming soon.</span>
-            )}
+        {/* Email — horizontal banner */}
+        <div style={{
+          background: "#fff", border: "1px solid #e8e8e8", borderRadius: 16,
+          padding: "20px 24px", marginBottom: 22,
+          display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap",
+        }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: "linear-gradient(135deg,#667eea,#764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>✉️</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 3 }}>Reach out by email</h3>
+            <p style={{ fontSize: 13, color: "#777", lineHeight: 1.5 }}>For collaborations, ideas, corrections, or anything StudyNest.</p>
           </div>
-
-          {/* Meet on campus */}
-          {meet.length > 0 && (
-            <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 16, padding: 24 }}>
-              <div style={{ fontSize: 22, marginBottom: 10 }}>🎓</div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 6 }}>Meet us on campus</h3>
-              <p style={{ fontSize: 13.5, color: "#666", lineHeight: 1.6, marginBottom: 14 }}>
-                An NTU student and want to meet in person? You&apos;ll find us here:
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {meet.map(c => (
-                  <div key={c.id} style={{ borderLeft: "3px solid #e0d8f5", paddingLeft: 12 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>{c.name}</div>
-                    <div style={{ fontSize: 12.5, color: "#777" }}>
-                      {[c.department, c.section && `Section ${c.section}`, c.semester && `Semester ${c.semester}`].filter(Boolean).join(" · ")}
-                    </div>
-                    {c.availability && <div style={{ fontSize: 12.5, color: "#9a6dd7", marginTop: 2 }}>{c.availability}</div>}
-                  </div>
-                ))}
-              </div>
+          {contact?.contact_email ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+              <a href={`mailto:${contact.contact_email}`} style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 18px", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                textDecoration: "none", color: "#fff", whiteSpace: "nowrap",
+                background: "linear-gradient(135deg,#667eea,#764ba2)",
+              }}>
+                Email us →
+              </a>
+              <span style={{ fontSize: 12, color: "#999", fontFamily: "monospace" }}>{contact.contact_email}</span>
             </div>
+          ) : (
+            <span style={{ fontSize: 13, color: "#aaa" }}>Email coming soon.</span>
           )}
         </div>
+
+        {/* Meet on campus — polished cards */}
+        {meet.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>🎓</span> Meet us on campus
+            </h3>
+            <p style={{ fontSize: 13.5, color: "#666", lineHeight: 1.6, marginBottom: 16 }}>
+              An NTU student and want to meet in person? Here&apos;s where to find us:
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(248px,1fr))", gap: 14 }}>
+              {meet.map((c, i) => (
+                <div key={c.id} className="card-hover" style={{
+                  background: "#fff", border: "1px solid #e8e8e8", borderRadius: 14, padding: 18,
+                  animation: `fadeUp 0.4s ${i * 0.06}s ease both`,
+                }}>
+                  {/* Avatar + name */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: (c.section || c.semester || c.availability) ? 12 : 0 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                      background: "linear-gradient(135deg,#667eea,#764ba2)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontWeight: 800, fontSize: 17,
+                      boxShadow: "0 4px 12px rgba(102,126,234,0.28)",
+                    }}>
+                      {c.name?.[0]?.toUpperCase() ?? "?"}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: "#111", letterSpacing: "-0.2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                      {c.department && <div style={{ fontSize: 12.5, color: "#764ba2", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.department}</div>}
+                    </div>
+                  </div>
+
+                  {/* Section / Semester tags */}
+                  {(c.section || c.semester) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: c.availability ? 10 : 0 }}>
+                      {c.section && (
+                        <span style={{ background: "#eef2ff", color: "#3b5bdb", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>Section {c.section}</span>
+                      )}
+                      {c.semester && (
+                        <span style={{ background: "#f3e8ff", color: "#7c3aed", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>Semester {c.semester}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Availability */}
+                  {c.availability && (
+                    <div style={{ display: "flex", gap: 7, alignItems: "flex-start", fontSize: 12.5, color: "#777", lineHeight: 1.5 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9a6dd7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                      </svg>
+                      <span>{c.availability}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Funny open-source note */}
         <div style={{
