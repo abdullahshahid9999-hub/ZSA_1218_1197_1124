@@ -21,6 +21,29 @@ function parseRoll(roll: string) {
   return m ? { code: m[1], name: DEPT_MAP[m[1]] ?? m[1] } : null;
 }
 
+function fileMeta(mime: string) {
+  if (mime?.includes("pdf")) return { label: "PDF", bg: "#fff0f0", fg: "#e03131" };
+  if (mime?.includes("image")) return { label: "Image", bg: "#e7f5ff", fg: "#1c7ed6" };
+  if (mime?.includes("word") || mime?.includes("document")) return { label: "DOCX", bg: "#edf2ff", fg: "#3b5bdb" };
+  return { label: "File", bg: "#f1f3f5", fg: "#666" };
+}
+
+const IconDoc = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+const IconEye = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const IconDownload = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 export default function PapersPage() {
   const [roll, setRoll] = useState("");
   const [dept, setDept] = useState<any>(null);
@@ -367,53 +390,74 @@ export default function PapersPage() {
           </div>
         ) : (
           <div className="fade-up-3">
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:18 }}>
+            {/* Results header */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18, flexWrap:"wrap" }}>
               {selectedSubject && (
-                <h3 style={{ fontSize:18, fontWeight:700, color:"#111", display:"flex", alignItems:"center", gap:8, margin:0 }}>
-                  <span style={{ background:"#f0f4ff", color:"#3b5bdb", padding:"4px 10px", borderRadius:8, fontSize:13, fontFamily:"monospace" }}>{selectedSubject.course_code}</span>
-                  {selectedSubject.name}
-                  {selectedSubject.credits != null && <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>· {selectedSubject.credits} cr</span>}
-                </h3>
+                <div style={{ minWidth:0 }}>
+                  <h3 style={{ fontSize:18, fontWeight:800, color:"#111", margin:0, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <span style={{ background:"#eef2ff", color:"#3b5bdb", padding:"4px 10px", borderRadius:8, fontSize:13, fontFamily:"monospace", fontWeight:700 }}>{selectedSubject.course_code}</span>
+                    {selectedSubject.name}
+                  </h3>
+                  {selectedTeacher && <div style={{ fontSize:13, color:"#888", marginTop:5 }}>by {selectedTeacher.name}</div>}
+                </div>
               )}
-              <span style={{ marginLeft:"auto", fontSize:13, color:"#777" }}>
-                <b style={{ color:"#111" }}>{papers.length}</b> paper{papers.length !== 1 ? "s" : ""}
+              <span style={{ marginLeft:"auto", fontSize:12.5, fontWeight:700, color:"#3b5bdb", background:"#eef2ff", padding:"6px 13px", borderRadius:999, whiteSpace:"nowrap" }}>
+                {papers.length} paper{papers.length !== 1 ? "s" : ""}
               </span>
             </div>
 
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:14 }}>
-              {papers.map((p: any, idx: number) => (
-                <div key={p.id} className="card-hover" style={{
-                  background:"#fff", border:"1px solid #e8e8e8", borderRadius:14, padding:20,
-                  display:"flex", flexDirection:"column",
-                  animation:`fadeUp 0.4s ${idx*0.05}s ease both`,
-                }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:14, color:"#111", marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.subjects?.name}</div>
-                      <div style={{ fontSize:11, color:"#bbb", fontFamily:"monospace" }}>{p.subjects?.course_code}</div>
+            {/* Paper cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(228px,1fr))", gap:16 }}>
+              {papers.map((p: any, idx: number) => {
+                const ft = fileMeta(p.file_type);
+                const isFinal = p.exam_type === "Final";
+                return (
+                  <div key={p.id} className="card-hover" style={{
+                    background:"#fff", border:"1px solid #ececec", borderRadius:16, overflow:"hidden",
+                    display:"flex", flexDirection:"column",
+                    animation:`fadeUp 0.4s ${idx*0.05}s ease both`,
+                  }}>
+                    {/* exam-type accent strip */}
+                    <div style={{ height:5, background: isFinal ? "linear-gradient(90deg,#667eea,#764ba2)" : "linear-gradient(90deg,#f6a93b,#fda085)" }} />
+
+                    <div style={{ padding:"16px 18px", display:"flex", flexDirection:"column", flex:1 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:10.5, fontWeight:800, color:ft.fg, background:ft.bg, padding:"4px 9px", borderRadius:7, letterSpacing:"0.02em" }}>
+                          <IconDoc /> {ft.label}
+                        </span>
+                        <span style={{ fontSize:10.5, fontWeight:800, letterSpacing:"0.04em", textTransform:"uppercase", color: isFinal ? "#5b3fa8" : "#b06a00", background: isFinal ? "#efeafd" : "#fff3e0", padding:"4px 10px", borderRadius:999 }}>
+                          {p.exam_type}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize:30, fontWeight:800, color:"#111", lineHeight:1, letterSpacing:"-0.5px" }}>{p.year}</div>
+                      <div style={{ fontSize:13, color:"#888", marginTop:7, marginBottom:18, display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontWeight:600, color:"#555" }}>{p.term}</span>
+                        <span style={{ width:3, height:3, borderRadius:"50%", background:"#ccc" }} />
+                        <span>Semester {p.semester}</span>
+                      </div>
+
+                      <div style={{ display:"flex", gap:8, marginTop:"auto" }}>
+                        <button onClick={() => handleView(p)} disabled={busy === p.id} style={{
+                          flex:1, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:7,
+                          padding:"10px", borderRadius:10, border:"none", cursor: busy === p.id ? "default" : "pointer",
+                          fontSize:13, fontWeight:700, color:"#fff", fontFamily:"inherit",
+                          background:"linear-gradient(135deg,#667eea,#764ba2)", opacity: busy === p.id ? 0.6 : 1,
+                          boxShadow:"0 4px 12px rgba(102,126,234,0.25)",
+                        }}>
+                          {busy === p.id ? "Loading…" : <><IconEye /> View</>}
+                        </button>
+                        <button onClick={() => handleDownload(p)} title="Download" aria-label="Download" style={{
+                          width:42, flexShrink:0, display:"inline-flex", alignItems:"center", justifyContent:"center",
+                          padding:"10px", borderRadius:10, border:"1px solid #e6e6e6", background:"#fff", cursor:"pointer", color:"#555",
+                        }}>
+                          <IconDownload />
+                        </button>
+                      </div>
                     </div>
-                    <span className="tag" style={{
-                      marginLeft:8, flexShrink:0,
-                      background: p.exam_type === "Final" ? "#e8f0fe" : "#fef9e7",
-                      color: p.exam_type === "Final" ? "#1a56db" : "#92400e",
-                    }}>
-                      {p.exam_type}
-                    </span>
                   </div>
-                  <div style={{ fontSize:13, color:"#999", marginBottom:16, flex:1 }}>
-                    Semester {p.semester} &middot; {p.term} {p.year}
-                  </div>
-                  <div style={{ display:"flex", gap:8, paddingTop:14, borderTop:"1px solid #f0f0f0" }}>
-                    <button onClick={() => handleView(p)} disabled={busy === p.id} className="btn-primary"
-                      style={{ flex:1, padding:"9px", opacity: busy === p.id ? 0.6 : 1 }}>
-                      {busy === p.id ? "Loading…" : "View"}
-                    </button>
-                    <button onClick={() => handleDownload(p)} className="btn-secondary" style={{ flex:1, padding:"9px" }}>
-                      Download
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )
