@@ -11,11 +11,12 @@ const sb = createClient(
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ departments: 0, teachers: 0, subjects: 0, pending: 0, approved: 0, rejected: 0, contributors: 0 });
+  const [visits, setVisits] = useState({ total_views: 0, unique_visitors: 0, views_today: 0, visitors_today: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [d, t, s, pending, approved, rejected, c] = await Promise.all([
+      const [d, t, s, pending, approved, rejected, c, vs] = await Promise.all([
         sb.from("departments").select("id", { count: "exact", head: true }),
         sb.from("teachers").select("id", { count: "exact", head: true }),
         sb.from("subjects").select("id", { count: "exact", head: true }),
@@ -23,11 +24,18 @@ export default function AdminDashboard() {
         sb.from("papers").select("id", { count: "exact", head: true }).eq("status", "Approved"),
         sb.from("papers").select("id", { count: "exact", head: true }).eq("status", "Rejected"),
         sb.from("contributors").select("id", { count: "exact", head: true }),
+        sb.from("v_visit_stats").select("*").maybeSingle(),
       ]);
       setStats({
         departments: d.count ?? 0, teachers: t.count ?? 0, subjects: s.count ?? 0,
         pending: pending.count ?? 0, approved: approved.count ?? 0,
         rejected: rejected.count ?? 0, contributors: c.count ?? 0,
+      });
+      if (vs.data) setVisits({
+        total_views: vs.data.total_views ?? 0,
+        unique_visitors: vs.data.unique_visitors ?? 0,
+        views_today: vs.data.views_today ?? 0,
+        visitors_today: vs.data.visitors_today ?? 0,
       });
       setLoading(false);
     }
@@ -54,6 +62,26 @@ export default function AdminDashboard() {
       {loading ? (
         <div style={{ color: "#aaa", fontSize: 14 }}>Loading stats…</div>
       ) : (
+        <>
+        {/* Site visitors */}
+        <div style={{ marginBottom: 30 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 12 }}>Site Visitors</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+            {[
+              { label: "Unique Visitors", value: visits.unique_visitors, grad: "linear-gradient(135deg,#667eea,#764ba2)" },
+              { label: "Total Page Views", value: visits.total_views, grad: "linear-gradient(135deg,#0ea5e9,#22d3ee)" },
+              { label: "Visitors Today", value: visits.visitors_today, grad: "linear-gradient(135deg,#10b981,#34d399)" },
+              { label: "Views Today", value: visits.views_today, grad: "linear-gradient(135deg,#f59e0b,#fbbf24)" },
+            ].map(v => (
+              <div key={v.label} style={{ background: v.grad, borderRadius: 14, padding: "20px 18px", color: "#fff", boxShadow: "0 8px 22px rgba(80,70,160,0.18)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.92, marginBottom: 10 }}>{v.label}</div>
+                <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{v.value.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Content stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
           {cards.map(({ label, value, href, color, bg, highlight }) => (
             <a key={label} href={href} style={{ textDecoration: "none" }}>
@@ -76,6 +104,7 @@ export default function AdminDashboard() {
             </a>
           ))}
         </div>
+        </>
       )}
 
       <div style={{ marginTop: 40, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12, padding: "20px 24px" }}>
