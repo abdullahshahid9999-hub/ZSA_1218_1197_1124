@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Nothing worked - log what we tried
+  // Nothing worked - log what we tried server-side only (don't leak storage paths to the client)
   console.error('Could not generate signed URL for paper:', id, 'paths tried:', paths);
   return NextResponse.json(
-    { error: 'Could not generate URL', paths_tried: paths },
+    { error: 'Could not generate URL' },
     { status: 500 }
   );
 }

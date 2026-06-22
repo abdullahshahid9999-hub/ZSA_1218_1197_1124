@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit } from '@/lib/utils/rateLimit';
 
 const SUPABASE_URL = 'https://dvtkcuqwvkakycsseydh.supabase.co';
 const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dGtjdXF3dmtha3ljc3NleWRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3NzA4NywiZXhwIjoyMDk2NjUzMDg3fQ.PQjFQe3RfawULpWVa9jBPAKi4ND2AiRb1ChWgIO6O3Q';
@@ -21,6 +22,15 @@ function parseDept(roll: string) {
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1';
+
+  // Rate limit: 5 submissions per minute per IP (abuse / spam protection)
+  const rl = rateLimit(`contribute:${ip}`, { windowMs: 60_000, max: 5 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many submissions. Please slow down and try again in a minute.' },
+      { status: 429 }
+    );
+  }
 
   let formData: FormData;
   try { formData = await request.formData(); }
